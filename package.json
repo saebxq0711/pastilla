@@ -5,14 +5,21 @@
   "description": "Registro diario de la pastilla anticonceptiva con recordatorios por correo",
   "scripts": {
     "dev": "node --env-file=.env scripts/dev.mjs",
-    "db:init": "node --env-file=.env scripts/init-db.mjs"
+    "db:init": "node --env-file=.env scripts/init-db.mjs",
+    "whatsapp:vincular": "node --env-file=.env.production scripts/vincular-whatsapp.mjs",
+    "whatsapp:probar": "node --env-file=.env.production scripts/probar-whatsapp.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
     "nodemailer": "^6.9.16",
+    "pino": "^10.4.0",
     "postgres": "^3.4.5",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "qrcode": "^1.5.4"
   }
 }

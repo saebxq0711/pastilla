@@ -7,6 +7,7 @@ import { db, leerAjustes } from './_lib/db.js';
 import { hoyColombia, segundosDelDia, horaBonita, HORA_TOMA, MINUTOS_ALERTA } from './_lib/hora.js';
 import { recordarAElla, alertarAEl } from './_lib/correo.js';
 import { notificar } from './_lib/push.js';
+import { hayWhatsApp, enviarWhatsApp, mensajesRecordatorio, mensajesAlerta } from './_lib/whatsapp.js';
 import { esDescanso } from '../public/ciclo.js';
 
 const TOLERANCIA_S = 60; // por si el reloj del cron se adelanta unos segundos
@@ -45,6 +46,7 @@ export default ruta(['GET', 'POST'], async (req, res) => {
       tipo: 'recordatorio',
       desde: HORA_TOMA,
       canales: [
+        hayWhatsApp() && (() => enviarWhatsApp(mensajesRecordatorio(horaToma))),
         () => notificar({ titulo: 'Es hora de tu pastilla', cuerpo: 'Tómatela y regístrala con un toque.' }),
         process.env.CORREO_ELLA && (() => recordarAElla({ hora: horaToma }).then(() => 1)),
       ],
@@ -53,7 +55,8 @@ export default ruta(['GET', 'POST'], async (req, res) => {
       tipo: 'alerta',
       desde: HORA_TOMA + MINUTOS_ALERTA,
       canales: [
-        () => alertarAEl({ hora: horaAlerta }).then(() => 1),
+        hayWhatsApp() && (() => enviarWhatsApp(mensajesAlerta(horaAlerta))),
+        process.env.CORREO_EL && (() => alertarAEl({ hora: horaAlerta }).then(() => 1)),
         () => notificar({ titulo: 'Aún no registras tu pastilla', cuerpo: `Ya son las ${horaAlerta}. Tómatela y márcala en la app.` }),
       ],
     },

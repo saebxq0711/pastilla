@@ -67,7 +67,7 @@
       <header class="cabecera entra" style="--i:0">
         <div>
           <p class="fecha" id="fecha-hoy"></p>
-          <h1 class="saludo"><span id="saludo">Hola</span>, <em>amor</em></h1>
+          <h1 class="saludo"><span id="saludo">Hola</span>, <em id="nombre">amor</em></h1>
         </div>
         <button class="icono-btn" id="abrir-ajustes" aria-label="Ajustes del blister">
           <svg class="i"><use href="#i-ajustes"/></svg>
@@ -181,8 +181,8 @@
         <input type="date" id="aj-inicio">
       </label>
       <ul class="info">
-        <li><svg class="i"><use href="#i-campana"/></svg><span><b>9:00 p. m.</b> Te llega una notificación de recordatorio</span></li>
-        <li><svg class="i"><use href="#i-alarma"/></svg><span><b>9:30 p. m.</b> Si no la has registrado, se le avisa a él</span></li>
+        <li><svg class="i"><use href="#i-campana"/></svg><span><b>9:00 p. m.</b> <span id="info-9">Te llega un WhatsApp de recordatorio</span></span></li>
+        <li><svg class="i"><use href="#i-alarma"/></svg><span><b>9:30 p. m.</b> <span id="info-930">Si no la has registrado, les llega otro WhatsApp a los dos</span></span></li>
         <li><svg class="i"><use href="#i-sobre"/></svg><span>Cada registro le llega a él por correo</span></li>
       </ul>
       <div class="hoja-acciones">

@@ -34,6 +34,14 @@ las dispara `pg_cron`. `/api/cron` no repite correos aunque lo llamen varias vec
 3. Copia la cadena del **Transaction pooler** (puerto 6543) para Vercel.
 
 ### 2. Avisos
+- **WhatsApp (principal):** a las 9:00 y 9:30 pm les llega un mensaje a los dos desde el número
+  vinculado (`WHATSAPP_ELLA`, `WHATSAPP_EL`, `NOMBRE_ELLA`, `NOMBRE_EL`). La sesión vive en
+  `privado.whatsapp_auth`; cada envío se conecta unos segundos y cierra, sin servidor encendido.
+  - Vincular (una vez): `npm run whatsapp:vincular` y escanear el QR desde *Dispositivos vinculados*.
+  - Probar: `npm run whatsapp:probar -- 57XXXXXXXXXX`.
+  - Si el celular del número vinculado no se usa en 14 días, WhatsApp lo desvincula: repetir
+    `npm run whatsapp:vincular -- --forzar`.
+  - Es vinculación no oficial (Baileys): WhatsApp podría restringir el número.
 - **Correos a él:** Resend con el remitente genérico `onboarding@resend.dev`. Resend solo entrega
   ese remitente al dueño de la cuenta, por eso `CORREO_EL` es el Gmail de esa cuenta.
   Con un dominio propio verificado se puede cambiar `MAIL_FROM` y escribir a cualquier correo

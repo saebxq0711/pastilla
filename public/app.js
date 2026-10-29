@@ -95,6 +95,10 @@ function pintar() {
   $('fecha-hoy').textContent = largo(d.hoy);
   const h = Math.floor(ahora / 60);
   $('saludo').textContent = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+  $('nombre').textContent = datos.nombre;
+  const wa = datos.whatsapp;
+  $('info-9').textContent = wa ? 'Te llega un WhatsApp de recordatorio' : 'Te llega una notificación de recordatorio';
+  $('info-930').textContent = wa ? 'Si no la has registrado, les llega otro WhatsApp a los dos' : 'Si no la has registrado, se le avisa a él';
 
   const r = racha(d.tomadas, d.hoy, d.ajustes, d.ajustes.inicioRegistro);
   const diaBl = diaDelBlister(d.hoy, d.ajustes);
@@ -467,6 +471,10 @@ async function revisarPush() {
   const tarjeta = $('aviso-push');
   const texto = $('push-texto');
   const boton = $('push-activar');
+  if (datos.whatsapp) {
+    tarjeta.hidden = true;
+    return;
+  }
   const reg = await swListo;
 
   if (!reg || !('PushManager' in window) || !('Notification' in window)) {

@@ -25,10 +25,12 @@ declare c privado.cron_config;
 begin
   select * into c from privado.cron_config where id = 1;
   if c.url is null or c.secreto is null then return; end if;
+  -- 60 s de espera: enviar por WhatsApp toma unos segundos (pg_net corta a los 5 s por defecto).
   perform net.http_post(
-    url     := c.url || '/api/cron',
-    headers := jsonb_build_object('Authorization', 'Bearer ' || c.secreto, 'Content-Type', 'application/json'),
-    body    := '{}'::jsonb
+    url                  := c.url || '/api/cron',
+    headers              := jsonb_build_object('Authorization', 'Bearer ' || c.secreto, 'Content-Type', 'application/json'),
+    body                 := '{}'::jsonb,
+    timeout_milliseconds := 60000
   );
 end $$;
 

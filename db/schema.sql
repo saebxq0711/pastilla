@@ -30,6 +30,14 @@ create table if not exists push_suscripciones (
   creada      timestamptz not null default now()
 );
 
+-- Sesión de WhatsApp vinculado. Va en un esquema que la API de Supabase no publica.
+create schema if not exists privado;
+revoke all on schema privado from public, anon, authenticated;
+create table if not exists privado.whatsapp_auth (
+  id    text primary key,
+  valor text not null
+);
+
 -- Supabase publica el esquema public por su API. Con RLS activo y sin políticas,
 -- nadie entra por ahí; la web se conecta como postgres, que no pasa por RLS.
 alter table tomas   enable row level security;

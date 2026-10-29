@@ -10,6 +10,9 @@ export async function estado() {
     ahora: Math.floor(segundosDelDia() / 60),
     horaToma: HORA_TOMA,
     minutosAlerta: MINUTOS_ALERTA,
+    nombre: process.env.NOMBRE_ELLA || 'amor',
+    // Con WhatsApp los avisos le llegan sin hacer nada; no hace falta pedirle notificaciones.
+    whatsapp: Boolean(process.env.WHATSAPP_ELLA),
     ajustes,
     tomas,
   };
