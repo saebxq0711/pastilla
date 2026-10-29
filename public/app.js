@@ -111,17 +111,17 @@ function pintar() {
   let icono = 'i-campana', texto, alerta = false;
   if (d.deHoy) {
     icono = 'i-check-circulo';
-    texto = r > 1 ? `Vas ${r} días seguidos sin fallar` : 'Lista por hoy';
+    texto = r > 1 ? `Vas ${r} días seguidos sin fallar, ${datos.nombre}` : `Lista por hoy, ${datos.nombre}`;
   } else if (d.descansoHoy) {
     icono = 'i-luna';
     texto = 'Semana de descanso, hoy no toca';
   } else if (ahora >= horaToma + minutosAlerta) {
     icono = 'i-alarma';
-    texto = 'Ya pasó la hora, aún puedes registrarla';
+    texto = 'Ya pasó la hora, aún estás a tiempo';
     alerta = true;
   } else if (ahora >= horaToma) {
     icono = 'i-alarma';
-    texto = 'Es la hora de tu pastilla';
+    texto = `Es la hora de tu pastilla, ${datos.nombre}`;
   } else {
     texto = `Recordatorio a las ${horaCorta(horaToma)}`;
   }

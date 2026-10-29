@@ -114,7 +114,7 @@ export function recordarAElla({ hora }) {
   return correo(ELLA(), 'Es hora de tu pastilla', {
     icono: 'campana',
     etiqueta: `Recordatorio · ${hora}`,
-    titulo: 'Es hora de tu pastilla, amor',
+    titulo: 'Es hora de tu pastilla, mi amor',
     texto: 'Tómatela y regístrala con un toque para que quede en tu calendario.',
     boton: 'Registrar mi pastilla',
   });

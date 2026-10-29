@@ -151,7 +151,9 @@ export async function enviarWhatsApp(mensajes) {
 }
 
 // ---------- Mensajes ----------
-const ELLA = () => process.env.NOMBRE_ELLA || 'amor';
+const ELLA = () => process.env.NOMBRE_ELLA || 'ella';
+const TRATO = process.env.TRATO_ELLA || 'mi amor'; // cómo se le habla a ella
+const Trato = TRATO.charAt(0).toUpperCase() + TRATO.slice(1);
 const EL = () => process.env.NOMBRE_EL || '';
 const url = () => (process.env.APP_URL ? `\n${process.env.APP_URL}` : '');
 
@@ -159,7 +161,7 @@ export function mensajesRecordatorio(hora) {
   return [
     {
       numero: process.env.WHATSAPP_ELLA,
-      texto: `*Pastillita*\nHola ${ELLA()}, son las ${hora}. Es hora de tu pastilla.\nCuando te la tomes, regístrala aquí:${url()}`,
+      texto: `*Pastillita*\nHola ${TRATO}, son las ${hora}: es hora de tu pastilla.\nCuando te la tomes, regístrala aquí:${url()}`,
     },
     {
       numero: process.env.WHATSAPP_EL,
@@ -172,7 +174,7 @@ export function mensajesAlerta(hora) {
   return [
     {
       numero: process.env.WHATSAPP_ELLA,
-      texto: `*Pastillita*\n${ELLA()}, ya son las ${hora} y tu pastilla de hoy sigue sin registrarse. Tómatela y márcala aquí:${url()}`,
+      texto: `*Pastillita*\n${Trato}, ya son las ${hora} y tu pastilla de hoy sigue sin registrarse. Tómatela y márcala aquí:${url()}`,
     },
     {
       numero: process.env.WHATSAPP_EL,
