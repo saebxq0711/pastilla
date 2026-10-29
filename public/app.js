@@ -171,8 +171,12 @@ function pintarBlister(d) {
     .map((f) => `<span>${fmtDiaSemana.format(aDate(f)).toUpperCase()}</span>`).join('');
 
   const frag = document.createDocumentFragment();
-  for (const f of fechas) {
-    const est = estadoDia(f, d);
+  for (const [i, f] of fechas.entries()) {
+    let est = estadoDia(f, d);
+    // Bellaface siempre trae 7 días sin pastilla al final, esté o no configurado el blister.
+    if (i >= ACTIVAS && est !== 'tomada' && !est.startsWith('descanso')) {
+      est = diffDias(f, d.hoy) > 0 ? 'descanso futuro' : 'descanso';
+    }
     const b = document.createElement('button');
     b.className = `burbuja ${est}${f === d.hoy ? ' hoy' : ''}${f === recien ? ' recien' : ''}`;
     b.dataset.fecha = f;
@@ -432,7 +436,9 @@ function abrirAjustes() {
   const enDescanso = esDescanso(hoy, ajustes);
   formAj.fase.value = enDescanso ? 'descanso' : 'tomando';
   ajNumero = ajustes.inicioBlister && !enDescanso ? diaDelBlister(hoy, ajustes) : 1;
-  $('aj-ultima').value = enDescanso ? sumarDias(hoy, ACTIVAS - diaDelBlister(hoy, ajustes)) : sumarDias(hoy, -1);
+  // Si ya registró la de hoy, lo más probable es que la última haya sido hoy.
+  const ultimaPorDefecto = datos.tomas.some((t) => t.fecha === hoy) ? hoy : sumarDias(hoy, -1);
+  $('aj-ultima').value = enDescanso ? sumarDias(hoy, ACTIVAS - diaDelBlister(hoy, ajustes)) : ultimaPorDefecto;
   $('aj-ultima').max = hoy;
   pintarAjustes();
   abrirHoja($('hoja-ajustes'));
@@ -508,9 +514,22 @@ formAj.addEventListener('submit', async (e) => {
 }
 
 // ---------- Arranque ----------
+let version = null;
+
 async function cargar() {
   try {
     datos = await api('estado');
+    // Hay una versión nueva publicada: se recarga una vez para traer el código nuevo.
+    if (version && datos.version !== version) {
+      let ya = null;
+      try { ya = sessionStorage.getItem('recargada'); } catch {}
+      if (ya !== datos.version) {
+        try { sessionStorage.setItem('recargada', datos.version); } catch {}
+        location.reload();
+        return;
+      }
+    }
+    version = datos.version;
     mostrar('inicio');
     pintar();
   } catch (err) {

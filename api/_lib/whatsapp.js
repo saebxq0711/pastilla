@@ -151,13 +151,26 @@ const ELLA = () => process.env.NOMBRE_ELLA || 'ella';
 const TRATO = process.env.TRATO_ELLA || 'mi amor'; // cómo se le habla a ella
 const Trato = TRATO.charAt(0).toUpperCase() + TRATO.slice(1);
 const EL = () => process.env.NOMBRE_EL || '';
-const url = () => (process.env.APP_URL ? `\n${process.env.APP_URL}` : '');
+/** URL de la app: APP_URL o, si falta o quedó el ejemplo, la de producción que da Vercel. */
+function urlApp() {
+  const propia = process.env.APP_URL;
+  if (propia && !propia.includes('TU-APP')) return propia.replace(/\/$/, '');
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  return vercel ? `https://${vercel}` : '';
+}
+const url = () => (urlApp() ? `\n${urlApp()}` : '');
+
+/** 'Buenos días' / 'Buenas tardes' / 'Buenas noches' según la hora de Colombia. */
+function saludo() {
+  const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+}
 
 export function mensajesRecordatorio(hora) {
   return [
     {
       numero: process.env.WHATSAPP_ELLA,
-      texto: `*Pastillita*\nHola ${TRATO}, son las ${hora}: es hora de tu pastilla.\nCuando te la tomes, regístrala aquí:${url()}`,
+      texto: `*Pastillita*\n${saludo()}, ${TRATO}. Son las ${hora}: es hora de tu pastilla.\nCuando te la tomes, regístrala aquí:${url()}`,
     },
     {
       numero: process.env.WHATSAPP_EL,

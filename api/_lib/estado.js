@@ -11,6 +11,8 @@ export async function estado() {
     ahora: Math.floor(segundosDelDia() / 60),
     horaToma: HORA_TOMA,
     minutosAlerta: MINUTOS_ALERTA,
+    // Si cambia, la app abierta se recarga sola para no quedarse con código viejo.
+    version: (process.env.VERCEL_GIT_COMMIT_SHA || 'local').slice(0, 7),
     nombre: process.env.TRATO_ELLA || 'mi amor',
     nombreEl: process.env.NOMBRE_EL || 'él',
     ajustes,

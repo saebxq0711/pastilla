@@ -28,11 +28,11 @@
       ]
     },
     {
-      "source": "/(app.js|app.css|ciclo.js)",
+      "source": "/((?!api/).*)",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
+          "value": "no-cache"
         }
       ]
     }
