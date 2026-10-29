@@ -13,11 +13,10 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@vercel/functions": "^3.10.4",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
-    "nodemailer": "^6.9.16",
     "pino": "^10.4.0",
-    "postgres": "^3.4.5",
-    "web-push": "^3.6.7"
+    "postgres": "^3.4.5"
   },
   "devDependencies": {
     "qrcode": "^1.5.4"

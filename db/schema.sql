@@ -23,16 +23,15 @@ create table if not exists ajustes (
 
 insert into ajustes (id) values (1) on conflict do nothing;
 
--- Suscripciones de notificaciones push (el iPhone de ella).
-create table if not exists push_suscripciones (
-  endpoint    text primary key,
-  suscripcion jsonb not null,
-  creada      timestamptz not null default now()
-);
-
 -- Sesión de WhatsApp vinculado. Va en un esquema que la API de Supabase no publica.
 create schema if not exists privado;
-revoke all on schema privado from public, anon, authenticated;
+revoke all on schema privado from public;
+do $$ begin
+  -- Los roles de la API solo existen en Supabase.
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    revoke all on schema privado from anon, authenticated;
+  end if;
+end $$;
 create table if not exists privado.whatsapp_auth (
   id    text primary key,
   valor text not null
@@ -43,4 +42,3 @@ create table if not exists privado.whatsapp_auth (
 alter table tomas   enable row level security;
 alter table avisos  enable row level security;
 alter table ajustes enable row level security;
-alter table push_suscripciones enable row level security;

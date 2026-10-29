@@ -11,8 +11,7 @@ export async function estado() {
     horaToma: HORA_TOMA,
     minutosAlerta: MINUTOS_ALERTA,
     nombre: process.env.TRATO_ELLA || 'mi amor',
-    // Con WhatsApp los avisos le llegan sin hacer nada; no hace falta pedirle notificaciones.
-    whatsapp: Boolean(process.env.WHATSAPP_ELLA),
+    nombreEl: process.env.NOMBRE_EL || 'él',
     ajustes,
     tomas,
   };

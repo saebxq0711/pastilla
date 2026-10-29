@@ -96,9 +96,7 @@ function pintar() {
   const h = Math.floor(ahora / 60);
   $('saludo').textContent = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
   $('nombre').textContent = datos.nombre;
-  const wa = datos.whatsapp;
-  $('info-9').textContent = wa ? 'Te llega un WhatsApp de recordatorio' : 'Te llega una notificación de recordatorio';
-  $('info-930').textContent = wa ? 'Si no la has registrado, les llega otro WhatsApp a los dos' : 'Si no la has registrado, se le avisa a él';
+  $('info-el').textContent = datos.nombreEl;
 
   const r = racha(d.tomadas, d.hoy, d.ajustes, d.ajustes.inicioRegistro);
   const diaBl = diaDelBlister(d.hoy, d.ajustes);
@@ -301,7 +299,7 @@ async function marcar(fecha, tomada) {
   } else {
     datos = r;
     pintar();
-    if (esHoy && tomada) toast(r.aviso === 'fallo' ? 'Registrada. El correo no salió' : 'Registrada. Ya se le avisó', { error: r.aviso === 'fallo' });
+    if (esHoy && tomada) toast(`Registrada. Le avisamos a ${datos.nombreEl}`);
     else if (esHoy) toast('Registro de hoy deshecho');
     else toast(tomada ? 'Día marcado como tomado' : 'Registro quitado');
   }
@@ -449,78 +447,12 @@ $('form-ajustes').addEventListener('submit', async (e) => {
   });
 }
 
-// ---------- Notificaciones push ----------
-// En iPhone solo existen con la app abierta desde la pantalla de inicio (iOS 16.4+).
-const swListo = 'serviceWorker' in navigator ? navigator.serviceWorker.register('/sw.js').catch(() => null) : Promise.resolve(null);
-
-function base64AUint8(b64) {
-  const s = atob((b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
-  return Uint8Array.from(s, (c) => c.charCodeAt(0));
-}
-
-async function guardarSuscripcion(reg) {
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    const { clave } = await api('push');
-    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64AUint8(clave) });
-  }
-  await api('push', { suscripcion: sub.toJSON() });
-}
-
-async function revisarPush() {
-  const tarjeta = $('aviso-push');
-  const texto = $('push-texto');
-  const boton = $('push-activar');
-  if (datos.whatsapp) {
-    tarjeta.hidden = true;
-    return;
-  }
-  const reg = await swListo;
-
-  if (!reg || !('PushManager' in window) || !('Notification' in window)) {
-    texto.innerHTML = `Para recibirlo, agrega Pastillita a tu inicio: toca ${svg('i-compartir')} Compartir y luego <b>Agregar a inicio</b>.`;
-    boton.hidden = true;
-    tarjeta.hidden = false;
-    return;
-  }
-  if (Notification.permission === 'granted') {
-    tarjeta.hidden = true;
-    guardarSuscripcion(reg).catch(() => {}); // re-sincroniza por si el servidor la perdió
-    return;
-  }
-  if (Notification.permission === 'denied') {
-    texto.textContent = 'Las notificaciones están bloqueadas. Actívalas en Ajustes, Notificaciones, Pastillita.';
-    boton.hidden = true;
-  } else {
-    texto.textContent = 'Activa las notificaciones para que te llegue cada noche.';
-    boton.hidden = false;
-  }
-  tarjeta.hidden = false;
-}
-
-$('push-activar').addEventListener('click', async () => {
-  const boton = $('push-activar');
-  boton.disabled = true;
-  try {
-    if (await Notification.requestPermission() === 'granted') {
-      await guardarSuscripcion(await swListo);
-      toast('Recordatorio activado');
-    }
-  } catch (err) {
-    if (err.message !== 'sesion') toastError(err);
-  } finally {
-    boton.disabled = false;
-    revisarPush();
-  }
-});
-
 // ---------- Arranque ----------
 async function cargar() {
   try {
     datos = await api('estado');
     mostrar('inicio');
     pintar();
-    revisarPush();
   } catch (err) {
     if (err.message !== 'sesion') toastError(err);
   }

@@ -37,6 +37,9 @@
   "functions": {
     "api/cron.js": {
       "maxDuration": 60
+    },
+    "api/dia.js": {
+      "maxDuration": 60
     }
   }
 }

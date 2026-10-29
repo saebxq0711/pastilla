@@ -335,36 +335,6 @@ em { font-style: italic; font-weight: 500; color: var(--acento); }
 .blister-estado.alerta { color: var(--falta); }
 .blister-estado.alerta .i { color: var(--falta); }
 
-/* ---------- Aviso para activar notificaciones ---------- */
-.aviso-push {
-  display: flex; align-items: center; gap: 12px;
-  margin-top: 14px;
-  padding: 14px 14px 14px 16px;
-  border-radius: 22px;
-  background: var(--acento-suave);
-}
-.aviso-ic {
-  width: 40px; height: 40px; flex: none;
-  display: grid; place-items: center;
-  border-radius: 12px;
-  background: var(--superficie);
-  color: var(--acento);
-}
-.aviso-cuerpo { flex: 1; min-width: 0; }
-.aviso-cuerpo b { display: block; font-size: 15px; font-weight: 650; }
-.aviso-cuerpo p { margin: 2px 0 0; font-size: 13.5px; color: var(--tinta-2); line-height: 1.4; }
-.aviso-cuerpo .i { width: 15px; height: 15px; vertical-align: -2px; color: var(--acento); }
-.aviso-btn {
-  flex: none;
-  height: 40px; padding: 0 16px;
-  border-radius: 999px;
-  background: var(--acento); color: #fff;
-  font-size: 14.5px; font-weight: 650;
-  transition: transform 140ms var(--ease-out), opacity 140ms ease;
-}
-.aviso-btn:active { transform: scale(0.95); }
-.aviso-btn:disabled { opacity: 0.6; }
-
 /* ---------- Estadísticas ---------- */
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
 .stat {

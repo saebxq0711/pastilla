@@ -18,10 +18,6 @@ for (const metodo of ['info', 'warn']) {
   };
 }
 
-export function hayWhatsApp() {
-  return Boolean(process.env.WHATSAPP_ELLA || process.env.WHATSAPP_EL);
-}
-
 /** Estado de autenticación de Baileys guardado en Postgres. */
 export async function authPostgres(sql = db()) {
   const aTexto = (v) => JSON.stringify(v, BufferJSON.replacer);
@@ -168,6 +164,24 @@ export function mensajesRecordatorio(hora) {
       texto: `*Pastillita*\n${EL() ? `${EL()}, s` : 'S'}on las ${hora} y ${ELLA()} aún no ha registrado la pastilla de hoy. Ya le llegó su recordatorio.`,
     },
   ];
+}
+
+export function mensajeTomada({ hora, racha, tarde }) {
+  const detalle = [
+    tarde ? 'Fue después de la hora del recordatorio.' : '',
+    racha > 1 ? `Lleva ${racha} días seguidos.` : '',
+  ].filter(Boolean).join(' ');
+  return [{
+    numero: process.env.WHATSAPP_EL,
+    texto: `*Pastillita*\n${ELLA()} se tomó la pastilla de hoy a las ${hora}.${detalle ? `\n${detalle}` : ''}`,
+  }];
+}
+
+export function mensajeDeshecha() {
+  return [{
+    numero: process.env.WHATSAPP_EL,
+    texto: `*Pastillita*\n${ELLA()} quitó el registro de hoy porque lo había marcado por error. Por ahora la pastilla aparece como no tomada.`,
+  }];
 }
 
 export function mensajesAlerta(hora) {

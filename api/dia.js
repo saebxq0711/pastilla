@@ -1,10 +1,11 @@
-// Marca o desmarca un día. Hoy avisa por correo; los días pasados solo corrigen el calendario.
+// Marca o desmarca un día. Hoy le avisa a él por WhatsApp; los días pasados solo corrigen el calendario.
+import { waitUntil } from '@vercel/functions';
 import { responder, leerJson, ruta } from './_lib/http.js';
 import { haySesion } from './_lib/sesion.js';
 import { db } from './_lib/db.js';
 import { hoyColombia, segundosDelDia, horaBonita, HORA_TOMA, MINUTOS_ALERTA } from './_lib/hora.js';
 import { estado, rachaDe } from './_lib/estado.js';
-import { avisarTomada, avisarDeshecha } from './_lib/correo.js';
+import { enviarWhatsApp, mensajeTomada, mensajeDeshecha } from './_lib/whatsapp.js';
 import { diffDias } from '../public/ciclo.js';
 
 const DIAS_ATRAS = 62;
@@ -39,24 +40,19 @@ export default ruta(['POST'], async (req, res) => {
   }
 
   const datos = await estado();
-  let aviso = null;
+  responder(res, 200, datos);
 
+  // El WhatsApp sale después de responder, para que el registro en la app sea instantáneo.
   if (esHoy && cambio.length > 0) {
-    try {
-      if (tomada) {
-        const s = segundosDelDia();
-        const hora = horaBonita(`${Math.floor(s / 3600)}:${Math.floor((s % 3600) / 60)}`);
-        const tarde = s >= (HORA_TOMA + MINUTOS_ALERTA) * 60;
-        await avisarTomada({ hora, racha: rachaDe(datos), tarde });
-      } else {
-        await avisarDeshecha();
-      }
-      aviso = 'enviado';
-    } catch (err) {
-      console.error('No se pudo enviar el correo', err);
-      aviso = 'fallo';
+    let mensajes;
+    if (tomada) {
+      const s = segundosDelDia();
+      const hora = horaBonita(`${Math.floor(s / 3600)}:${Math.floor((s % 3600) / 60)}`);
+      const tarde = s >= (HORA_TOMA + MINUTOS_ALERTA) * 60;
+      mensajes = mensajeTomada({ hora, racha: rachaDe(datos), tarde });
+    } else {
+      mensajes = mensajeDeshecha();
     }
+    waitUntil(enviarWhatsApp(mensajes).catch((err) => console.error('No se pudo avisar por WhatsApp', err)));
   }
-
-  responder(res, 200, { ...datos, aviso });
 });
