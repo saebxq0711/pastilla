@@ -1,0 +1,17 @@
+{
+  "name": "pastillita",
+  "private": true,
+  "type": "module",
+  "description": "Registro diario de la pastilla anticonceptiva con recordatorios por correo",
+  "scripts": {
+    "dev": "node --env-file=.env scripts/dev.mjs",
+    "db:init": "node --env-file=.env scripts/init-db.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.16",
+    "postgres": "^3.4.5"
+  }
+}

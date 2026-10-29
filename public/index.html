@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pastillita</title>
+  <meta name="description" content="Registro diario de la pastilla, con calendario y recordatorio.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fff3f6">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#160b15">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Pastillita">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/app.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="fondo" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="g-pastilla" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#ff8ab2"/><stop offset="1" stop-color="#e23b78"/>
+      </linearGradient>
+    </defs>
+    <symbol id="i-pastilla" viewBox="0 0 64 64">
+      <g transform="rotate(-45 32 32)">
+        <rect x="6" y="21" width="52" height="22" rx="11" fill="var(--pill-a)"/>
+        <path d="M32 21h15a11 11 0 0 1 0 22H32z" fill="url(#g-pastilla)"/>
+        <rect x="11" y="25" width="16" height="4" rx="2" fill="#fff" opacity=".7"/>
+      </g>
+    </symbol>
+    <symbol id="i-luna" viewBox="0 0 64 64">
+      <path d="M41 10a22 22 0 1 0 13 33A18 18 0 0 1 41 10z" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-ajustes" viewBox="0 0 24 24">
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <circle cx="15" cy="7" r="2.4" stroke="currentColor" stroke-width="2" fill="none"/>
+      <circle cx="9" cy="17" r="2.4" stroke="currentColor" stroke-width="2" fill="none"/>
+    </symbol>
+    <symbol id="i-flecha" viewBox="0 0 24 24">
+      <path d="M14.5 6l-6 6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </symbol>
+    <symbol id="i-corazon" viewBox="0 0 24 24">
+      <path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.6 4.5c2.1 0 3.5 1.1 4.4 2.6.9-1.5 2.3-2.6 4.4-2.6 3.6 0 5.7 3.8 4.2 7.2C19.5 16.4 12 21 12 21z" fill="currentColor"/>
+    </symbol>
+  </svg>
+
+  <main class="app" id="app">
+    <section class="login" id="login" hidden>
+      <svg class="login-icono entra" style="--i:0"><use href="#i-pastilla"/></svg>
+      <h1 class="entra" style="--i:1">Hola, amor</h1>
+      <p class="entra" style="--i:2">Escribe tu PIN para entrar.<br>Solo te lo pido esta vez 💕</p>
+      <form class="login-form entra" style="--i:3" id="form-pin" novalidate>
+        <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password"
+               enterkeyhint="go" maxlength="12" aria-label="PIN" placeholder="••••••">
+        <button class="btn btn-primario" type="submit">Entrar</button>
+        <p class="error" id="pin-error" role="alert"></p>
+      </form>
+    </section>
+
+    <section class="inicio" id="inicio" hidden>
+      <header class="cabecera entra" style="--i:0">
+        <div>
+          <p class="saludo" id="saludo">Hola, amor</p>
+          <h1 class="fecha" id="fecha-hoy"></h1>
+        </div>
+        <button class="icono-btn" id="abrir-ajustes" aria-label="Ajustes del blister">
+          <svg><use href="#i-ajustes"/></svg>
+        </button>
+      </header>
+
+      <div class="toma entra" style="--i:1">
+        <div class="chispas" id="chispas" aria-hidden="true"></div>
+        <button class="pastilla" id="btn-tomar" data-estado="pendiente">
+          <span class="pastilla-halo" aria-hidden="true"></span>
+          <span class="pastilla-cara">
+            <span class="pastilla-relleno" aria-hidden="true"></span>
+            <span class="pastilla-iconos" aria-hidden="true">
+              <svg class="ic ic-pastilla"><use href="#i-pastilla"/></svg>
+              <svg class="ic ic-luna"><use href="#i-luna"/></svg>
+              <svg class="ic ic-check" viewBox="0 0 64 64"><path d="M17 33.5l10 10 20-22" pathLength="1"/></svg>
+            </span>
+            <span class="pastilla-texto" id="btn-texto">Me la tomé</span>
+            <span class="pastilla-sub" id="btn-sub">Toca aquí</span>
+          </span>
+        </button>
+        <p class="estado-texto" id="estado-texto" aria-live="polite"></p>
+        <button class="enlace" id="deshacer" style="visibility:hidden">¿Te equivocaste? Deshacer</button>
+      </div>
+
+      <div class="stats entra" style="--i:2">
+        <div class="stat"><span class="stat-num" id="st-racha">0</span><span class="stat-lbl" id="st-racha-lbl">días seguidos</span></div>
+        <div class="stat"><span class="stat-num" id="st-mes">0</span><span class="stat-lbl">este mes</span></div>
+        <div class="stat"><span class="stat-num" id="st-hora">—</span><span class="stat-lbl">hora habitual</span></div>
+      </div>
+
+      <section class="tarjeta calendario entra" style="--i:3" aria-labelledby="cal-titulo">
+        <div class="cal-cabecera">
+          <button class="icono-btn" id="mes-ant" aria-label="Mes anterior"><svg><use href="#i-flecha"/></svg></button>
+          <h2 id="cal-titulo"></h2>
+          <button class="icono-btn icono-btn--der" id="mes-sig" aria-label="Mes siguiente"><svg><use href="#i-flecha"/></svg></button>
+        </div>
+        <div class="cal-semana" aria-hidden="true">
+          <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <ul class="leyenda">
+          <li><i class="ley ley-tomada"></i>Tomada</li>
+          <li><i class="ley ley-olvidada"></i>No tomada</li>
+          <li><i class="ley ley-descanso"></i>Descanso</li>
+        </ul>
+      </section>
+
+      <p class="pie entra" style="--i:4" id="pie"></p>
+    </section>
+  </main>
+
+  <dialog class="hoja" id="hoja-dia" aria-labelledby="dia-titulo">
+    <div class="hoja-fondo" data-cerrar></div>
+    <div class="hoja-panel">
+      <span class="hoja-asa" aria-hidden="true"></span>
+      <p class="hoja-chip" id="dia-chip"></p>
+      <h2 id="dia-titulo"></h2>
+      <p class="hoja-texto" id="dia-texto"></p>
+      <div class="hoja-acciones">
+        <button class="btn btn-primario" id="dia-si">Sí, me la tomé</button>
+        <button class="btn btn-suave" id="dia-no">Quitar: no me la tomé</button>
+        <button class="btn btn-fantasma" data-cerrar>Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="hoja" id="hoja-ajustes" aria-labelledby="aj-titulo">
+    <div class="hoja-fondo" data-cerrar></div>
+    <form class="hoja-panel" id="form-ajustes">
+      <span class="hoja-asa" aria-hidden="true"></span>
+      <h2 id="aj-titulo">Tu blister</h2>
+      <p class="hoja-texto">Así sé qué días te toca y cuáles son de descanso.</p>
+      <div class="segmento" role="radiogroup" aria-label="Tipo de blister">
+        <label><input type="radio" name="blister" value="28"><span>28 días<small>sin descanso</small></span></label>
+        <label><input type="radio" name="blister" value="21"><span>21 + 7<small>con descanso</small></span></label>
+      </div>
+      <label class="campo" id="campo-inicio">
+        <span>¿Qué día empezaste este blister?</span>
+        <input type="date" id="aj-inicio">
+      </label>
+      <ul class="info">
+        <li><b>9:00 pm</b> te llega un correo para recordarte 💜</li>
+        <li><b>9:30 pm</b> si aún no la registras, le aviso a tu amor</li>
+        <li>Cada vez que la registras, él recibe un correo 💌</li>
+      </ul>
+      <div class="hoja-acciones">
+        <button class="btn btn-primario" type="submit">Guardar</button>
+        <button class="btn btn-fantasma" type="button" data-cerrar>Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <!-- iOS 18 da un toque háptico al cambiar un switch nativo; se usa para el "tic" al registrar. -->
+  <label class="haptico" aria-hidden="true"><input type="checkbox" switch tabindex="-1"></label>
+</body>
+</html>
