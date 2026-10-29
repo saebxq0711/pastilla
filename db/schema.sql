@@ -23,8 +23,16 @@ create table if not exists ajustes (
 
 insert into ajustes (id) values (1) on conflict do nothing;
 
+-- Suscripciones de notificaciones push (el iPhone de ella).
+create table if not exists push_suscripciones (
+  endpoint    text primary key,
+  suscripcion jsonb not null,
+  creada      timestamptz not null default now()
+);
+
 -- Supabase publica el esquema public por su API. Con RLS activo y sin políticas,
 -- nadie entra por ahí; la web se conecta como postgres, que no pasa por RLS.
 alter table tomas   enable row level security;
 alter table avisos  enable row level security;
 alter table ajustes enable row level security;
+alter table push_suscripciones enable row level security;

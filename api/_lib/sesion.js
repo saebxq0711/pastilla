@@ -1,13 +1,14 @@
 import crypto from 'node:crypto';
 
 const COOKIE = 'pastillita';
+const PIN = process.env.APP_PIN || '0711';
 const DURACION_S = 400 * 86400; // el máximo que permiten los navegadores
 
 // La firma incluye el PIN: si se cambia el PIN, todas las sesiones caducan.
 function firmar(valor) {
   return crypto
     .createHmac('sha256', process.env.SESSION_SECRET)
-    .update(`${valor}|${process.env.APP_PIN}`)
+    .update(`${valor}|${PIN}`)
     .digest('base64url');
 }
 
@@ -18,7 +19,7 @@ function igual(a, b) {
 }
 
 export function pinCorrecto(pin) {
-  return Boolean(process.env.APP_PIN) && igual(pin, process.env.APP_PIN);
+  return igual(pin, PIN);
 }
 
 export function cookieDeSesion() {

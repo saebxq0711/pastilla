@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "nodemailer": "^6.9.16",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "web-push": "^3.6.7"
   }
 }

@@ -1,32 +1,32 @@
-import { sumarDias, diffDias, esDescanso, diaDelBlister, racha, mejorRacha } from './ciclo.js';
+import { sumarDias, diffDias, esDescanso, diaDelBlister, fechasDelBlister, racha, mejorRacha } from './ciclo.js';
 
 const $ = (id) => document.getElementById(id);
 const ZONA = 'America/Bogota';
 const reducir = matchMedia('(prefers-reduced-motion: reduce)');
+const DIAS_ATRAS = 62;
 
-let datos = null;   // última respuesta de /api/estado
+let datos = null;    // última respuesta de /api/estado
 let mesVisto = null; // 'YYYY-MM'
 let ocupado = false;
+let recien = null;   // fecha recién registrada, para animar su burbuja una sola vez
 
 // ---------- Fechas ----------
 const fmtHoy = new Intl.DateTimeFormat('en-CA', { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit' });
 const fmtHM = new Intl.DateTimeFormat('en-GB', { timeZone: ZONA, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const fmtLargo = new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' });
 const fmtMes = new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', month: 'long', year: 'numeric' });
+const fmtDiaSemana = new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', weekday: 'narrow' });
 
 const aDate = (f) => new Date(`${f}T00:00:00Z`);
 const largo = (f) => fmtLargo.format(aDate(f)).replace(',', '');
 const hoyLocal = () => fmtHoy.format(new Date());
-function minutosAhora() {
-  const [h, m] = fmtHM.format(new Date()).split(':').map(Number);
-  return h * 60 + m;
-}
+const aMin = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+const minutosAhora = () => aMin(fmtHM.format(new Date()));
 function horaCorta(min) {
   const h = Math.floor(min / 60);
-  const m = String(min % 60).padStart(2, '0');
-  return `${h % 12 || 12}:${m} ${h < 12 ? 'am' : 'pm'}`;
+  return `${h % 12 || 12}:${String(min % 60).padStart(2, '0')} ${h < 12 ? 'a. m.' : 'p. m.'}`;
 }
-const aMin = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+const svg = (id, clase = 'i') => `<svg class="${clase}"><use href="#${id}"/></svg>`;
 
 // ---------- Red ----------
 async function api(ruta, cuerpo) {
@@ -39,15 +39,18 @@ async function api(ruta, cuerpo) {
   return json;
 }
 
-// ---------- Pequeños detalles ----------
+// ---------- Detalles ----------
 let toastTimer;
-function toast(texto) {
+function toast(texto, { error = false } = {}) {
   const t = $('toast');
-  t.textContent = texto;
+  t.querySelector('span').textContent = texto;
+  t.querySelector('use').setAttribute('href', error ? '#i-alerta' : '#i-check-circulo');
+  t.classList.toggle('error', error);
   t.classList.add('visible');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('visible'), 2800);
 }
+const toastError = (err) => toast(navigator.onLine ? err.message : 'Sin conexión, intenta de nuevo', { error: true });
 
 function haptico() {
   if (navigator.vibrate) navigator.vibrate(12);
@@ -57,15 +60,14 @@ function haptico() {
 function mostrar(vista) {
   $('login').hidden = vista !== 'login';
   $('inicio').hidden = vista !== 'inicio';
-  if (vista === 'login') setTimeout(() => $('pin').focus(), 400);
+  $('barra').hidden = vista !== 'inicio';
 }
 
 // ---------- Estado derivado ----------
 function derivar() {
   const { hoy, ajustes, tomas } = datos;
   const tomadas = new Set(tomas.map((t) => t.fecha));
-  const deHoy = tomas.find((t) => t.fecha === hoy);
-  return { hoy, ajustes, tomas, tomadas, deHoy, descansoHoy: esDescanso(hoy, ajustes) };
+  return { hoy, ajustes, tomas, tomadas, deHoy: tomas.find((t) => t.fecha === hoy), descansoHoy: esDescanso(hoy, ajustes) };
 }
 
 function estadoDia(f, d) {
@@ -77,60 +79,65 @@ function estadoDia(f, d) {
   return 'olvidada';
 }
 
+const ETIQUETAS = {
+  tomada: 'Tomada', olvidada: 'No tomada', descanso: 'Descanso', pendiente: 'Pendiente',
+  futuro: 'Aún no llega', 'descanso futuro': 'Descanso', fuera: 'Sin registro',
+};
+
+const sePuedeTocar = (f, d) => { const atras = diffDias(d.hoy, f); return atras >= 0 && atras <= DIAS_ATRAS; };
+
 // ---------- Pintar ----------
 function pintar() {
   const d = derivar();
   const ahora = minutosAhora();
   const { horaToma, minutosAlerta } = datos;
 
-  const h = Math.floor(ahora / 60);
-  $('saludo').textContent = `${h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'}, amor`;
   $('fecha-hoy').textContent = largo(d.hoy);
+  const h = Math.floor(ahora / 60);
+  $('saludo').textContent = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
 
-  // Botón principal
-  const btn = $('btn-tomar');
-  let estado, texto, sub, linea, alerta = false;
+  const r = racha(d.tomadas, d.hoy, d.ajustes, d.ajustes.inicioRegistro);
   const diaBl = diaDelBlister(d.hoy, d.ajustes);
-  const maxBl = d.ajustes.blister === '21' ? 21 : 28;
+  const activas = d.ajustes.blister === '21' ? 21 : 28;
+  $('bl-titulo').textContent = d.descansoHoy ? `Descanso, día ${diaBl} de 28` : `Pastilla ${diaBl} de ${activas}`;
+  $('racha-num').textContent = r;
+  $('chip-racha').setAttribute('aria-label', `Racha de ${r} ${r === 1 ? 'día' : 'días'}`);
 
+  // Línea de estado bajo el blister
+  let icono = 'i-campana', texto, alerta = false;
   if (d.deHoy) {
-    estado = 'tomada';
-    texto = '¡Tomada!';
-    sub = d.deHoy.tarde ? 'registrada' : `a las ${horaCorta(aMin(d.deHoy.hora))}`;
-    const r = racha(d.tomadas, d.hoy, d.ajustes, d.ajustes.inicioRegistro);
-    linea = r > 1 ? `Llevas ${r} días seguidos 🔥 Te amo` : 'Lista por hoy, eres la mejor 💕';
+    icono = 'i-check-circulo';
+    texto = r > 1 ? `Vas ${r} días seguidos sin fallar` : 'Lista por hoy';
   } else if (d.descansoHoy) {
-    estado = 'descanso';
-    texto = 'Descanso';
-    sub = 'hoy no toca';
-    linea = `Semana de descanso 🌙 Día ${diaBl} de 28`;
+    icono = 'i-luna';
+    texto = 'Semana de descanso, hoy no toca';
   } else if (ahora >= horaToma + minutosAlerta) {
-    estado = 'tarde';
-    texto = 'Me la tomé';
-    sub = '¡ya pasó la hora!';
-    linea = 'Tómatela ya, amor 💕';
+    icono = 'i-alarma';
+    texto = 'Ya pasó la hora, aún puedes registrarla';
     alerta = true;
+  } else if (ahora >= horaToma) {
+    icono = 'i-alarma';
+    texto = 'Es la hora de tu pastilla';
   } else {
-    estado = 'pendiente';
-    texto = 'Me la tomé';
-    sub = 'toca aquí';
-    linea = ahora >= horaToma
-      ? 'Es la hora, amor 💜'
-      : diaBl && diaBl <= maxBl ? `Hoy va la pastilla ${diaBl} de ${maxBl}` : `Tu recordatorio llega a las ${horaCorta(horaToma)}`;
+    texto = `Recordatorio a las ${horaCorta(horaToma)}`;
   }
-  btn.dataset.estado = estado;
-  btn.setAttribute('aria-label', estado === 'tomada' ? `Pastilla de hoy tomada ${sub}` : 'Registrar que me tomé la pastilla de hoy');
-  $('btn-texto').textContent = texto;
-  $('btn-sub').textContent = sub;
-  $('estado-texto').textContent = linea;
-  $('estado-texto').classList.toggle('alerta', alerta);
-  $('deshacer').style.visibility = d.deHoy ? 'visible' : 'hidden'; // reserva el espacio: nada salta
+  $('estado-icono').querySelector('use').setAttribute('href', `#${icono}`);
+  $('estado-texto').textContent = texto;
+  $('blister-estado').classList.toggle('alerta', alerta);
+
+  // Barra inferior
+  const barra = $('barra');
+  barra.dataset.modo = d.deHoy ? 'hecho' : d.descansoHoy ? 'descanso' : 'accion';
+  barra.classList.toggle('tarde', alerta);
+  if (d.deHoy) {
+    $('hecho-titulo').textContent = 'Tomada hoy';
+    $('hecho-sub').textContent = d.deHoy.tarde ? 'Registrada desde el historial' : `A las ${horaCorta(aMin(d.deHoy.hora))}`;
+  }
+  $('descanso-sub').textContent = `Día ${diaBl} de 28`;
 
   // Estadísticas
-  const r = racha(d.tomadas, d.hoy, d.ajustes, d.ajustes.inicioRegistro);
   $('st-racha').textContent = r;
   $('st-racha-lbl').textContent = r === 1 ? 'día seguido' : 'días seguidos';
-
   const inicioMes = `${d.hoy.slice(0, 8)}01`;
   let tocaban = 0, hechas = 0;
   for (let f = inicioMes > d.ajustes.inicioRegistro ? inicioMes : d.ajustes.inicioRegistro; f <= d.hoy; f = sumarDias(f, 1)) {
@@ -138,14 +145,35 @@ function pintar() {
     if (d.tomadas.has(f)) { hechas++; tocaban++; } else if (f !== d.hoy) tocaban++;
   }
   $('st-mes').textContent = tocaban ? `${hechas}/${tocaban}` : '—';
-
   const horas = d.tomas.filter((t) => !t.tarde).slice(-30).map((t) => aMin(t.hora)).sort((a, b) => a - b);
-  $('st-hora').textContent = horas.length ? horaCorta(horas[Math.floor(horas.length / 2)]) : '—';
+  $('st-hora').textContent = horas.length ? horaCorta(horas[Math.floor(horas.length / 2)]).replace(/ (a|p)\. m\./, ' $1m') : '—';
 
   const mejor = mejorRacha(d.tomadas, d.hoy, d.ajustes, d.ajustes.inicioRegistro);
-  $('pie').textContent = mejor > 1 ? `Tu mejor racha: ${mejor} días 💖` : `Recordatorio diario a las ${horaCorta(horaToma)} 💌`;
+  $('pie').textContent = mejor > 1 ? `Mejor racha: ${mejor} días` : '';
 
+  pintarBlister(d);
   pintarCalendario();
+}
+
+function pintarBlister(d) {
+  const fechas = fechasDelBlister(d.hoy, d.ajustes);
+  $('lamina-dias').innerHTML = fechas.slice(0, 7)
+    .map((f) => `<span>${fmtDiaSemana.format(aDate(f)).toUpperCase()}</span>`).join('');
+
+  const frag = document.createDocumentFragment();
+  for (const f of fechas) {
+    const est = estadoDia(f, d);
+    const b = document.createElement('button');
+    b.className = `burbuja ${est}${f === d.hoy ? ' hoy' : ''}${f === recien ? ' recien' : ''}`;
+    b.dataset.fecha = f;
+    b.disabled = !sePuedeTocar(f, d);
+    b.setAttribute('aria-label', `${largo(f)}: ${ETIQUETAS[est]}`);
+    if (est === 'tomada') b.innerHTML = svg('i-check', 'i marca-check');
+    else if (est.startsWith('descanso')) b.innerHTML = svg('i-luna', 'i marca-luna');
+    else b.innerHTML = `<span class="tableta"></span>${f === d.hoy && !reducir.matches ? '<span class="anillo"></span>' : ''}`;
+    frag.append(b);
+  }
+  $('lamina-grid').replaceChildren(frag);
 }
 
 function pintarCalendario(direccion = 0) {
@@ -158,7 +186,6 @@ function pintarCalendario(direccion = 0) {
   const [y, m] = mesVisto.split('-').map(Number);
   const diasMes = new Date(Date.UTC(y, m, 0)).getUTCDate();
 
-  const grid = $('cal-grid');
   const frag = document.createDocumentFragment();
   for (let i = 0; i < huecos; i++) {
     const v = document.createElement('span');
@@ -172,14 +199,13 @@ function pintarCalendario(direccion = 0) {
     b.className = `dia ${est}${f === d.hoy ? ' hoy' : ''}`;
     b.textContent = n;
     b.dataset.fecha = f;
-    const atras = diffDias(d.hoy, f);
-    b.disabled = atras < 0 || atras > 62;
-    b.setAttribute('aria-label', `${largo(f)}: ${etiqueta(est)}`);
+    b.disabled = !sePuedeTocar(f, d);
+    b.setAttribute('aria-label', `${largo(f)}: ${ETIQUETAS[est]}`);
     frag.append(b);
   }
+  const grid = $('cal-grid');
   grid.replaceChildren(frag);
 
-  // No pasar de dos meses en el futuro (para ver descansos) ni de un año atrás.
   $('mes-sig').disabled = diffDias(primero, d.hoy) > 40;
   $('mes-ant').disabled = diffDias(d.hoy, primero) > 365;
 
@@ -191,110 +217,103 @@ function pintarCalendario(direccion = 0) {
   }
 }
 
-function etiqueta(est) {
-  return {
-    tomada: 'tomada', olvidada: 'no tomada', descanso: 'descanso', pendiente: 'pendiente',
-    futuro: 'aún no llega', 'descanso futuro': 'descanso', fuera: 'sin registro',
-  }[est];
-}
-
 function cambiarMes(delta) {
   const [y, m] = mesVisto.split('-').map(Number);
-  const nuevo = new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
-  mesVisto = nuevo;
+  mesVisto = new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
   pintarCalendario(delta);
 }
 
-// ---------- Celebración ----------
-function celebrar() {
-  if (reducir.matches) return;
-  const cara = document.querySelector('.pastilla-cara');
-  cara.animate(
-    [{ transform: 'scale(0.92)' }, { transform: 'scale(1.05)' }, { transform: 'scale(1)' }],
-    { duration: 620, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' },
-  );
+// ---------- Animación al registrar ----------
+/** La tableta de hoy salta de su burbuja. Devuelve una promesa que termina con la animación. */
+function sacarTableta(fecha) {
+  const burbuja = document.querySelector(`.burbuja[data-fecha="${fecha}"]`);
+  const tableta = burbuja?.querySelector('.tableta');
+  if (!tableta || reducir.matches) return Promise.resolve();
+  burbuja.querySelector('.anillo')?.remove();
+  chispas(burbuja);
+  return tableta.animate(
+    [
+      { transform: 'none', opacity: 1 },
+      { transform: 'translateY(-6px) scale(1.3)', opacity: 1, offset: 0.4 },
+      { transform: 'translateY(-26px) scale(0.5) rotate(40deg)', opacity: 0 },
+    ],
+    { duration: 380, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' },
+  ).finished;
+}
 
+function chispas(origen) {
+  const caja = origen.getBoundingClientRect();
   const capa = $('chispas');
-  const total = 16;
+  capa.style.transform = `translate(${caja.left + caja.width / 2}px, ${caja.top + caja.height / 2}px)`;
+  const total = 12;
   for (let i = 0; i < total; i++) {
-    const c = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    c.classList.add('chispa');
-    c.innerHTML = '<use href="#i-corazon"/>';
+    const c = document.createElement('i');
+    c.className = 'chispa';
     capa.append(c);
-    const ang = (i / total) * Math.PI * 2 + Math.random() * 0.35;
-    const dist = 125 + Math.random() * 55;
-    const x = Math.cos(ang) * dist;
-    const y = Math.sin(ang) * dist;
-    const s = 0.6 + Math.random() * 0.7;
-    const giro = (Math.random() - 0.5) * 60;
+    const ang = (i / total) * 360 + Math.random() * 12;
+    const dist = 30 + Math.random() * 18;
     c.animate(
       [
-        { transform: 'translate(0,0) scale(0.4)', opacity: 0 },
-        { transform: `translate(${x * 0.55}px,${y * 0.55}px) scale(${s})`, opacity: 1, offset: 0.35 },
-        { transform: `translate(${x}px,${y - 24}px) scale(${s * 0.8}) rotate(${giro}deg)`, opacity: 0 },
+        { transform: `rotate(${ang}deg) translateY(-10px) scaleY(0.4)`, opacity: 0 },
+        { transform: `rotate(${ang}deg) translateY(-${dist * 0.7}px) scaleY(1)`, opacity: 1, offset: 0.35 },
+        { transform: `rotate(${ang}deg) translateY(-${dist}px) scaleY(0.2)`, opacity: 0 },
       ],
-      { duration: 900 + Math.random() * 300, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', delay: Math.random() * 80 },
+      { duration: 560, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' },
     ).finished.then(() => c.remove());
   }
 }
 
 // ---------- Acciones ----------
-async function marcar(fecha, tomada, { optimista = false } = {}) {
+async function marcar(fecha, tomada) {
   if (ocupado) return;
   ocupado = true;
   const antes = datos;
-  if (optimista) {
-    const hm = fmtHM.format(new Date());
-    datos = {
-      ...datos,
-      tomas: tomada
-        ? [...datos.tomas, { fecha, hora: hm, tarde: false }]
-        : datos.tomas.filter((t) => t.fecha !== fecha),
-    };
-    pintar();
+  const esHoy = fecha === datos.hoy;
+
+  // La petición sale ya; la pantalla cambia cuando la tableta termina de saltar.
+  const peticion = api('dia', { fecha, tomada }).then((r) => ({ r }), (e) => ({ e }));
+  if (tomada && esHoy) {
+    haptico();
+    await sacarTableta(fecha);
   }
-  try {
-    const r = await api('dia', { fecha, tomada });
-    datos = r;
-    pintar();
-    if (fecha === datos.hoy && tomada) {
-      toast(r.aviso === 'fallo' ? 'Quedó registrada ✔ (el correo no salió)' : 'Listo, ya le avisé a tu amor 💌');
-    } else if (fecha === datos.hoy) {
-      toast('Listo, la quité del registro');
-    } else {
-      toast(tomada ? 'Día marcado como tomado ✔' : 'Día marcado como no tomado');
-    }
-  } catch (err) {
-    if (err.message !== 'sesion') {
+
+  datos = {
+    ...datos,
+    tomas: tomada
+      ? [...datos.tomas, { fecha, hora: fmtHM.format(new Date()), tarde: !esHoy }]
+      : datos.tomas.filter((t) => t.fecha !== fecha),
+  };
+  recien = tomada ? fecha : null;
+  pintar();
+  setTimeout(() => { recien = null; }, 900);
+
+  const { r, e } = await peticion;
+  if (e) {
+    if (e.message !== 'sesion') {
       datos = antes;
       pintar();
-      toast(navigator.onLine ? err.message : 'Sin internet, intenta de nuevo');
+      toastError(e);
     }
-  } finally {
-    ocupado = false;
+  } else {
+    datos = r;
+    pintar();
+    if (esHoy && tomada) toast(r.aviso === 'fallo' ? 'Registrada. El correo no salió' : 'Registrada. Ya se le avisó', { error: r.aviso === 'fallo' });
+    else if (esHoy) toast('Registro de hoy deshecho');
+    else toast(tomada ? 'Día marcado como tomado' : 'Registro quitado');
   }
+  ocupado = false;
 }
 
 $('btn-tomar').addEventListener('click', () => {
-  const d = derivar();
-  if (d.deHoy) {
-    haptico();
-    toast('Ya está registrada hoy 💕');
-    return;
-  }
-  haptico();
-  marcar(d.hoy, true, { optimista: true });
-  celebrar();
+  if (!derivar().deHoy) marcar(datos.hoy, true);
 });
-
-$('deshacer').addEventListener('click', () => marcar(datos.hoy, false, { optimista: true }));
-
+$('deshacer').addEventListener('click', () => marcar(datos.hoy, false));
 $('mes-ant').addEventListener('click', () => cambiarMes(-1));
 $('mes-sig').addEventListener('click', () => cambiarMes(1));
 
-// Deslizar el calendario hacia los lados para cambiar de mes.
+// Deslizar el historial hacia los lados para cambiar de mes.
 {
-  const cal = document.querySelector('.calendario');
+  const cal = document.querySelector('.historial');
   let x0 = null, y0 = 0;
   cal.addEventListener('pointerdown', (e) => { x0 = e.clientX; y0 = e.clientY; });
   cal.addEventListener('pointerup', (e) => {
@@ -302,8 +321,7 @@ $('mes-sig').addEventListener('click', () => cambiarMes(1));
     const dx = e.clientX - x0, dy = e.clientY - y0;
     x0 = null;
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      const btn = $(dx < 0 ? 'mes-sig' : 'mes-ant');
-      if (!btn.disabled) cambiarMes(dx < 0 ? 1 : -1);
+      if (!$(dx < 0 ? 'mes-sig' : 'mes-ant').disabled) cambiarMes(dx < 0 ? 1 : -1);
     }
   });
   cal.addEventListener('pointercancel', () => { x0 = null; });
@@ -317,11 +335,10 @@ function abrirHoja(hoja) {
 function cerrarHoja(hoja) {
   if (!hoja.open) return;
   hoja.classList.remove('abierta');
-  const panel = hoja.querySelector('.hoja-panel');
-  const fin = () => hoja.close();
+  const fin = () => hoja.open && hoja.close();
   if (reducir.matches) return setTimeout(fin, 200);
-  panel.addEventListener('transitionend', fin, { once: true });
-  setTimeout(fin, 400); // por si no llega transitionend
+  hoja.querySelector('.hoja-panel').addEventListener('transitionend', fin, { once: true });
+  setTimeout(fin, 400);
 }
 for (const hoja of document.querySelectorAll('.hoja')) {
   hoja.addEventListener('click', (e) => { if (e.target.closest('[data-cerrar]')) cerrarHoja(hoja); });
@@ -329,88 +346,163 @@ for (const hoja of document.querySelectorAll('.hoja')) {
 }
 
 let diaAbierto = null;
-$('cal-grid').addEventListener('click', (e) => {
-  const b = e.target.closest('.dia');
-  if (!b || b.disabled) return;
+function abrirDia(f) {
   const d = derivar();
-  const f = b.dataset.fecha;
+  // Hoy pendiente: tocar su burbuja es lo mismo que el botón principal.
+  if (f === d.hoy && !d.deHoy && !d.descansoHoy) return marcar(f, true);
+
   const est = estadoDia(f, d);
+  const toma = d.tomas.find((t) => t.fecha === f);
   diaAbierto = f;
 
   const chip = $('dia-chip');
-  const toma = d.tomas.find((t) => t.fecha === f);
-  chip.className = `hoja-chip ${est === 'tomada' ? '' : est.split(' ')[0]}`;
-  chip.textContent = est === 'tomada'
-    ? (toma.tarde ? 'Tomada · registrada después' : `Tomada a las ${horaCorta(aMin(toma.hora))}`)
-    : etiqueta(est).replace(/^./, (c) => c.toUpperCase());
+  chip.className = `hoja-chip ${est.split(' ')[0]}`;
+  chip.querySelector('use').setAttribute('href', {
+    tomada: '#i-check-circulo', olvidada: '#i-alerta', descanso: '#i-luna',
+  }[est.split(' ')[0]] || '#i-reloj');
+  chip.querySelector('span').textContent = est === 'tomada'
+    ? (toma.tarde ? 'Tomada, registrada después' : `Tomada a las ${horaCorta(aMin(toma.hora))}`)
+    : ETIQUETAS[est];
   $('dia-titulo').textContent = f === d.hoy ? `Hoy, ${largo(f)}` : largo(f);
   $('dia-texto').textContent = est === 'tomada'
-    ? '¿Quieres quitar este registro?'
+    ? 'Si se marcó por error, puedes quitar el registro.'
     : est.startsWith('descanso')
-      ? 'Es día de descanso del blister. Si igual te la tomaste, puedes marcarla.'
-      : '¿Te la tomaste este día? Puedes marcarlo aunque se te haya olvidado registrarlo.';
+      ? 'Es un día de descanso del blister. Si igual te la tomaste, puedes marcarla.'
+      : 'Si te la tomaste y no la registraste, márcala aquí.';
   $('dia-si').hidden = est === 'tomada';
   $('dia-no').hidden = est !== 'tomada';
   abrirHoja($('hoja-dia'));
-});
+}
 
-$('dia-si').addEventListener('click', async () => {
-  cerrarHoja($('hoja-dia'));
-  const esHoy = diaAbierto === datos.hoy;
-  if (esHoy) { haptico(); celebrar(); }
-  await marcar(diaAbierto, true, { optimista: true });
-});
-$('dia-no').addEventListener('click', async () => {
-  cerrarHoja($('hoja-dia'));
-  await marcar(diaAbierto, false, { optimista: true });
-});
+for (const id of ['cal-grid', 'lamina-grid']) {
+  $(id).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-fecha]');
+    if (b && !b.disabled) abrirDia(b.dataset.fecha);
+  });
+}
+$('dia-si').addEventListener('click', () => { cerrarHoja($('hoja-dia')); marcar(diaAbierto, true); });
+$('dia-no').addEventListener('click', () => { cerrarHoja($('hoja-dia')); marcar(diaAbierto, false); });
 
 // Ajustes
 $('abrir-ajustes').addEventListener('click', () => {
   const { ajustes, hoy } = datos;
   const form = $('form-ajustes');
   form.blister.value = ajustes.blister;
-  $('aj-inicio').value = ajustes.inicioBlister || hoy;
+  $('aj-inicio').value = ajustes.inicioBlister || ajustes.inicioRegistro;
   $('aj-inicio').max = hoy;
-  $('campo-inicio').hidden = ajustes.blister !== '21';
   abrirHoja($('hoja-ajustes'));
-});
-$('form-ajustes').addEventListener('change', (e) => {
-  if (e.target.name === 'blister') $('campo-inicio').hidden = e.target.value !== '21';
 });
 $('form-ajustes').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const form = e.currentTarget;
-  const blister = form.blister.value;
   try {
-    datos = await api('ajustes', { blister, inicioBlister: blister === '21' ? $('aj-inicio').value || datos.hoy : null });
+    datos = await api('ajustes', { blister: e.currentTarget.blister.value, inicioBlister: $('aj-inicio').value || datos.hoy });
     cerrarHoja($('hoja-ajustes'));
     pintar();
-    toast('Guardado 💕');
+    toast('Blister actualizado');
   } catch (err) {
-    if (err.message !== 'sesion') toast(err.message);
+    if (err.message !== 'sesion') toastError(err);
   }
 });
 
-// ---------- Login ----------
-$('form-pin').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.currentTarget;
-  const boton = form.querySelector('button');
+// ---------- Acceso con teclado numérico ----------
+{
+  const LARGO = 4;
+  let codigo = '';
+  const puntos = $('puntos');
+
+  const pintarPuntos = () => [...puntos.children].forEach((p, i) => p.classList.toggle('lleno', i < codigo.length));
+
+  async function enviar() {
+    try {
+      await api('login', { pin: codigo });
+      puntos.classList.add('bien');
+      await cargar();
+    } catch {
+      $('pin-estado').textContent = 'Código incorrecto';
+      puntos.classList.remove('mal');
+      void puntos.offsetWidth;
+      puntos.classList.add('mal');
+      if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
+      setTimeout(() => { codigo = ''; puntos.classList.remove('mal'); pintarPuntos(); }, 450);
+    }
+  }
+
+  function tecla(d) {
+    if (d === 'borrar') codigo = codigo.slice(0, -1);
+    else if (codigo.length < LARGO) codigo += d;
+    pintarPuntos();
+    if (codigo.length === LARGO) enviar();
+  }
+
+  $('teclado').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (b) tecla(b.dataset.borrar !== undefined ? 'borrar' : b.dataset.d);
+  });
+  document.addEventListener('keydown', (e) => {
+    if ($('login').hidden) return;
+    if (/^\d$/.test(e.key)) tecla(e.key);
+    else if (e.key === 'Backspace') tecla('borrar');
+  });
+}
+
+// ---------- Notificaciones push ----------
+// En iPhone solo existen con la app abierta desde la pantalla de inicio (iOS 16.4+).
+const swListo = 'serviceWorker' in navigator ? navigator.serviceWorker.register('/sw.js').catch(() => null) : Promise.resolve(null);
+
+function base64AUint8(b64) {
+  const s = atob((b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+}
+
+async function guardarSuscripcion(reg) {
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const { clave } = await api('push');
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64AUint8(clave) });
+  }
+  await api('push', { suscripcion: sub.toJSON() });
+}
+
+async function revisarPush() {
+  const tarjeta = $('aviso-push');
+  const texto = $('push-texto');
+  const boton = $('push-activar');
+  const reg = await swListo;
+
+  if (!reg || !('PushManager' in window) || !('Notification' in window)) {
+    texto.innerHTML = `Para recibirlo, agrega Pastillita a tu inicio: toca ${svg('i-compartir')} Compartir y luego <b>Agregar a inicio</b>.`;
+    boton.hidden = true;
+    tarjeta.hidden = false;
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    tarjeta.hidden = true;
+    guardarSuscripcion(reg).catch(() => {}); // re-sincroniza por si el servidor la perdió
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    texto.textContent = 'Las notificaciones están bloqueadas. Actívalas en Ajustes, Notificaciones, Pastillita.';
+    boton.hidden = true;
+  } else {
+    texto.textContent = 'Activa las notificaciones para que te llegue cada noche.';
+    boton.hidden = false;
+  }
+  tarjeta.hidden = false;
+}
+
+$('push-activar').addEventListener('click', async () => {
+  const boton = $('push-activar');
   boton.disabled = true;
-  $('pin-error').textContent = '';
   try {
-    await api('login', { pin: $('pin').value.trim() });
-    $('pin').blur();
-    await cargar();
+    if (await Notification.requestPermission() === 'granted') {
+      await guardarSuscripcion(await swListo);
+      toast('Recordatorio activado');
+    }
   } catch (err) {
-    $('pin-error').textContent = err.message === 'PIN incorrecto' ? 'Ese no es, intenta otra vez 🙈' : err.message;
-    form.classList.remove('mal');
-    void form.offsetWidth;
-    form.classList.add('mal');
-    $('pin').select();
+    if (err.message !== 'sesion') toastError(err);
   } finally {
     boton.disabled = false;
+    revisarPush();
   }
 });
 
@@ -420,10 +512,9 @@ async function cargar() {
     datos = await api('estado');
     mostrar('inicio');
     pintar();
+    revisarPush();
   } catch (err) {
-    if (err.message !== 'sesion') {
-      toast(navigator.onLine ? err.message : 'Sin internet, intenta de nuevo');
-    }
+    if (err.message !== 'sesion') toastError(err);
   }
 }
 
@@ -432,7 +523,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && datos) cargar();
 });
 setInterval(() => {
-  if (!datos || document.hidden) return;
+  if (!datos || document.hidden || ocupado) return;
   if (hoyLocal() !== datos.hoy) cargar();
   else pintar();
 }, 60000);

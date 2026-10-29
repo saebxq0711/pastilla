@@ -17,17 +17,25 @@ export function diffDias(a, b) {
   return Math.round((aUTC(a) - aUTC(b)) / DIA_MS);
 }
 
-/** Día del blister (1..28) o null si no aplica. */
+/** Día 1 del blister de referencia: el que ella configuró o, si no, el primer día registrado. */
+function ancla(ajustes) {
+  return ajustes.inicioBlister || ajustes.inicioRegistro;
+}
+
+/** Día del blister (1..28). */
 export function diaDelBlister(fecha, ajustes) {
-  if (!ajustes.inicioBlister) return null;
-  return ((((diffDias(fecha, ajustes.inicioBlister)) % 28) + 28) % 28) + 1;
+  return ((((diffDias(fecha, ancla(ajustes))) % 28) + 28) % 28) + 1;
+}
+
+/** Las 28 fechas del blister que contiene `fecha`. */
+export function fechasDelBlister(fecha, ajustes) {
+  const inicio = sumarDias(fecha, 1 - diaDelBlister(fecha, ajustes));
+  return Array.from({ length: 28 }, (_, i) => sumarDias(inicio, i));
 }
 
 /** En blister de 21 + 7, los días 22..28 son de descanso. */
 export function esDescanso(fecha, ajustes) {
-  if (ajustes.blister !== '21') return false;
-  const dia = diaDelBlister(fecha, ajustes);
-  return dia !== null && dia > 21;
+  return ajustes.blister === '21' && diaDelBlister(fecha, ajustes) > 21;
 }
 
 /** Días seguidos tomándola. Los días de descanso no rompen la racha. */
