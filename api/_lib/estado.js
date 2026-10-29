@@ -4,7 +4,8 @@ import { racha } from '../../public/ciclo.js';
 
 /** Todo lo que la pantalla necesita, en una sola respuesta. */
 export async function estado() {
-  const [ajustes, tomas] = await Promise.all([leerAjustes(), leerTomas()]);
+  const ajustes = await leerAjustes();
+  const tomas = await leerTomas();
   return {
     hoy: hoyColombia(),
     ahora: Math.floor(segundosDelDia() / 60),

@@ -33,9 +33,11 @@ export function fechasDelBlister(fecha, ajustes) {
   return Array.from({ length: 28 }, (_, i) => sumarDias(inicio, i));
 }
 
-/** En blister de 21 + 7, los días 22..28 son de descanso. */
+export const ACTIVAS = 21; // Bellaface: 21 pastillas + 7 días de descanso
+
+/** Días 22..28 del ciclo son de descanso. Sin blister configurado no se asume ninguno. */
 export function esDescanso(fecha, ajustes) {
-  return ajustes.blister === '21' && diaDelBlister(fecha, ajustes) > 21;
+  return Boolean(ajustes.inicioBlister) && diaDelBlister(fecha, ajustes) > ACTIVAS;
 }
 
 /** Días seguidos tomándola. Los días de descanso no rompen la racha. */

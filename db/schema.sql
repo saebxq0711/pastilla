@@ -16,7 +16,7 @@ create table if not exists avisos (
 
 create table if not exists ajustes (
   id              int primary key default 1 check (id = 1),
-  blister         text not null default '28' check (blister in ('28', '21')),
+  blister         text not null default '21' check (blister in ('28', '21')),
   inicio_blister  date,                                -- día 1 del blister actual
   inicio_registro date not null default (now() at time zone 'America/Bogota')::date
 );

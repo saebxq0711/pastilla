@@ -5,7 +5,6 @@ import { haySesion } from './_lib/sesion.js';
 import { db } from './_lib/db.js';
 import { hoyColombia, segundosDelDia, horaBonita, HORA_TOMA, MINUTOS_ALERTA } from './_lib/hora.js';
 import { estado, rachaDe } from './_lib/estado.js';
-import { enviarWhatsApp, mensajeTomada, mensajeDeshecha } from './_lib/whatsapp.js';
 import { diffDias } from '../public/ciclo.js';
 
 const DIAS_ATRAS = 62;
@@ -43,16 +42,14 @@ export default ruta(['POST'], async (req, res) => {
   responder(res, 200, datos);
 
   // El WhatsApp sale después de responder, para que el registro en la app sea instantáneo.
+  // Baileys se carga aquí y no arriba: es pesado y no debe demorar la respuesta.
   if (esHoy && cambio.length > 0) {
-    let mensajes;
-    if (tomada) {
-      const s = segundosDelDia();
-      const hora = horaBonita(`${Math.floor(s / 3600)}:${Math.floor((s % 3600) / 60)}`);
-      const tarde = s >= (HORA_TOMA + MINUTOS_ALERTA) * 60;
-      mensajes = mensajeTomada({ hora, racha: rachaDe(datos), tarde });
-    } else {
-      mensajes = mensajeDeshecha();
-    }
-    waitUntil(enviarWhatsApp(mensajes).catch((err) => console.error('No se pudo avisar por WhatsApp', err)));
+    const s = segundosDelDia();
+    const hora = horaBonita(`${Math.floor(s / 3600)}:${Math.floor((s % 3600) / 60)}`);
+    const tarde = s >= (HORA_TOMA + MINUTOS_ALERTA) * 60;
+    const racha = rachaDe(datos);
+    waitUntil(import('./_lib/whatsapp.js')
+      .then((wa) => wa.enviarWhatsApp(tomada ? wa.mensajeTomada({ hora, racha, tarde }) : wa.mensajeDeshecha()))
+      .catch((err) => console.error('No se pudo avisar por WhatsApp', err)));
   }
 });

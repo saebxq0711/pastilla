@@ -1,4 +1,4 @@
-import { sumarDias, diffDias, esDescanso, diaDelBlister, fechasDelBlister, racha, mejorRacha } from './ciclo.js';
+import { sumarDias, diffDias, esDescanso, diaDelBlister, fechasDelBlister, racha, mejorRacha, ACTIVAS } from './ciclo.js';
 
 const $ = (id) => document.getElementById(id);
 const ZONA = 'America/Bogota';
@@ -26,6 +26,8 @@ function horaCorta(min) {
   const h = Math.floor(min / 60);
   return `${h % 12 || 12}:${String(min % 60).padStart(2, '0')} ${h < 12 ? 'a. m.' : 'p. m.'}`;
 }
+/** 'mañana' o 'el lunes 3 de noviembre'. */
+const cuando = (f, hoy) => (diffDias(f, hoy) === 1 ? 'mañana' : `el ${largo(f)}`);
 const svg = (id, clase = 'i') => `<svg class="${clase}"><use href="#${id}"/></svg>`;
 
 // ---------- Red ----------
@@ -100,8 +102,12 @@ function pintar() {
 
   const r = racha(d.tomadas, d.hoy, d.ajustes, d.ajustes.inicioRegistro);
   const diaBl = diaDelBlister(d.hoy, d.ajustes);
-  const activas = d.ajustes.blister === '21' ? 21 : 28;
-  $('bl-titulo').textContent = d.descansoHoy ? `Descanso, día ${diaBl} de 28` : `Pastilla ${diaBl} de ${activas}`;
+  const configurado = Boolean(d.ajustes.inicioBlister);
+  const nuevoBlister = sumarDias(d.hoy, 29 - diaBl); // día 1 del siguiente blister
+  $('bl-titulo').textContent = !configurado
+    ? 'Tu blister'
+    : d.descansoHoy ? `Descanso, día ${diaBl - ACTIVAS} de 7` : `Pastilla ${diaBl} de ${ACTIVAS}`;
+  $('aviso-blister').hidden = configurado;
   $('racha-num').textContent = r;
   $('chip-racha').setAttribute('aria-label', `Racha de ${r} ${r === 1 ? 'día' : 'días'}`);
 
@@ -112,7 +118,7 @@ function pintar() {
     texto = r > 1 ? `Vas ${r} días seguidos sin fallar, ${datos.nombre}` : `Lista por hoy, ${datos.nombre}`;
   } else if (d.descansoHoy) {
     icono = 'i-luna';
-    texto = 'Semana de descanso, hoy no toca';
+    texto = diaBl === 28 ? 'Último día de descanso: mañana empiezas blister nuevo' : `Descanso. Empiezas blister nuevo ${cuando(nuevoBlister, d.hoy)}`;
   } else if (ahora >= horaToma + minutosAlerta) {
     icono = 'i-alarma';
     texto = 'Ya pasó la hora, aún estás a tiempo';
@@ -121,7 +127,9 @@ function pintar() {
     icono = 'i-alarma';
     texto = `Es la hora de tu pastilla, ${datos.nombre}`;
   } else {
-    texto = `Recordatorio a las ${horaCorta(horaToma)}`;
+    texto = configurado && diaBl === 1
+      ? `Hoy empiezas blister nuevo. Recordatorio a las ${horaCorta(horaToma)}`
+      : `Recordatorio a las ${horaCorta(horaToma)}`;
   }
   $('estado-icono').querySelector('use').setAttribute('href', `#${icono}`);
   $('estado-texto').textContent = texto;
@@ -135,7 +143,7 @@ function pintar() {
     $('hecho-titulo').textContent = 'Tomada hoy';
     $('hecho-sub').textContent = d.deHoy.tarde ? 'Registrada desde el historial' : `A las ${horaCorta(aMin(d.deHoy.hora))}`;
   }
-  $('descanso-sub').textContent = `Día ${diaBl} de 28`;
+  $('descanso-sub').textContent = `Nuevo blister ${cuando(nuevoBlister, d.hoy)}`;
 
   // Estadísticas
   $('st-racha').textContent = r;
@@ -385,24 +393,76 @@ for (const id of ['cal-grid', 'lamina-grid']) {
 $('dia-si').addEventListener('click', () => { cerrarHoja($('hoja-dia')); marcar(diaAbierto, true); });
 $('dia-no').addEventListener('click', () => { cerrarHoja($('hoja-dia')); marcar(diaAbierto, false); });
 
-// Ajustes
-$('abrir-ajustes').addEventListener('click', () => {
+// ---------- Ajustes: en qué va del blister ----------
+const formAj = $('form-ajustes');
+let ajNumero = 1;
+
+/** Día 1 del blister según lo que ella eligió. */
+function inicioElegido() {
+  if (formAj.fase.value === 'tomando') return sumarDias(datos.hoy, 1 - ajNumero);
+  const ultima = $('aj-ultima').value;
+  return ultima ? sumarDias(ultima, 1 - ACTIVAS) : null;
+}
+
+function resumenCiclo(inicio) {
+  const hoy = datos.hoy;
+  const dia = diaDelBlister(hoy, { ...datos.ajustes, inicioBlister: inicio });
+  const nuevo = sumarDias(hoy, 29 - dia);
+  if (dia <= ACTIVAS) {
+    const ultima = sumarDias(hoy, ACTIVAS - dia);
+    return `Tu última pastilla de este blister es ${diffDias(ultima, hoy) === 0 ? 'hoy' : `el ${largo(ultima)}`}. Luego descansas 7 días y empiezas el siguiente el ${largo(nuevo)}.`;
+  }
+  return `Hoy es tu día ${dia - ACTIVAS} de descanso. Empiezas el blister nuevo ${cuando(nuevo, hoy)}.`;
+}
+
+function pintarAjustes() {
+  const fase = formAj.fase.value;
+  $('campo-tomando').hidden = fase !== 'tomando';
+  $('campo-descanso').hidden = fase !== 'descanso';
+  $('aj-numero').textContent = ajNumero;
+  for (const b of formAj.querySelectorAll('.contador-btn')) {
+    b.disabled = b.dataset.paso === '-1' ? ajNumero <= 1 : ajNumero >= ACTIVAS;
+  }
+  const inicio = inicioElegido();
+  $('aj-resumen').textContent = inicio ? resumenCiclo(inicio) : '';
+}
+
+function abrirAjustes() {
   const { ajustes, hoy } = datos;
-  const form = $('form-ajustes');
-  form.blister.value = ajustes.blister;
-  $('aj-inicio').value = ajustes.inicioBlister || ajustes.inicioRegistro;
-  $('aj-inicio').max = hoy;
+  const enDescanso = esDescanso(hoy, ajustes);
+  formAj.fase.value = enDescanso ? 'descanso' : 'tomando';
+  ajNumero = ajustes.inicioBlister && !enDescanso ? diaDelBlister(hoy, ajustes) : 1;
+  $('aj-ultima').value = enDescanso ? sumarDias(hoy, ACTIVAS - diaDelBlister(hoy, ajustes)) : sumarDias(hoy, -1);
+  $('aj-ultima').max = hoy;
+  pintarAjustes();
   abrirHoja($('hoja-ajustes'));
+}
+
+$('abrir-ajustes').addEventListener('click', abrirAjustes);
+$('aviso-blister').addEventListener('click', abrirAjustes);
+formAj.addEventListener('change', pintarAjustes);
+$('aj-ultima').addEventListener('input', pintarAjustes);
+formAj.querySelector('.contador').addEventListener('click', (e) => {
+  const b = e.target.closest('.contador-btn');
+  if (!b || b.disabled) return;
+  ajNumero = Math.min(ACTIVAS, Math.max(1, ajNumero + Number(b.dataset.paso)));
+  pintarAjustes();
 });
-$('form-ajustes').addEventListener('submit', async (e) => {
+formAj.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const inicioBlister = inicioElegido();
+  if (!inicioBlister) return toast('Elige el día de tu última pastilla', { error: true });
+  const boton = formAj.querySelector('[type="submit"]');
+  boton.disabled = true;
   try {
-    datos = await api('ajustes', { blister: e.currentTarget.blister.value, inicioBlister: $('aj-inicio').value || datos.hoy });
+    datos = await api('ajustes', { inicioBlister });
     cerrarHoja($('hoja-ajustes'));
     pintar();
     toast('Blister actualizado');
   } catch (err) {
     if (err.message !== 'sesion') toastError(err);
+  } finally {
+    boton.disabled = false;
   }
 });
 

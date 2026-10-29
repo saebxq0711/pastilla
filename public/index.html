@@ -38,10 +38,12 @@
     <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
     <symbol id="i-campana" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
     <symbol id="i-alarma" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6M22 6l-3-3"/></symbol>
-    <symbol id="i-sobre" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+    <symbol id="i-mensaje" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
     <symbol id="i-luna" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
     <symbol id="i-borrar" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.34.52l-6.33 5.74a1 1 0 0 0 0 1.48l6.33 5.74A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6M18 9l-6 6"/></symbol>
     <symbol id="i-compartir" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M8 11H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2"/></symbol>
+    <symbol id="i-menos" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-mas" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
     <symbol id="i-candado" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
   </svg>
 
@@ -88,6 +90,15 @@
         </div>
         <p class="blister-estado" id="blister-estado"><svg class="i" id="estado-icono"><use href="#i-campana"/></svg><span id="estado-texto"></span></p>
       </section>
+
+      <button class="aviso entra" style="--i:2" id="aviso-blister" hidden>
+        <span class="aviso-ic"><svg class="i"><use href="#i-calendario"/></svg></span>
+        <span class="aviso-cuerpo">
+          <b>¿En qué vas de tu Bellaface?</b>
+          <span>Dime qué pastilla te toca hoy o si estás en descanso, y yo calculo el resto.</span>
+        </span>
+        <svg class="i aviso-flecha"><use href="#i-der"/></svg>
+      </button>
 
       <div class="stats entra" style="--i:2">
         <div class="stat"><span class="stat-ic"><svg class="i"><use href="#i-racha"/></svg></span><b class="stat-num" id="st-racha">0</b><span class="stat-lbl" id="st-racha-lbl">días seguidos</span></div>
@@ -161,20 +172,29 @@
     <div class="hoja-fondo" data-cerrar></div>
     <form class="hoja-panel" id="form-ajustes">
       <span class="hoja-asa" aria-hidden="true"></span>
-      <p class="etiqueta">Ajustes</p>
-      <h2 id="aj-titulo">Tu blister</h2>
-      <div class="segmento" role="radiogroup" aria-label="Tipo de blister">
-        <label><input type="radio" name="blister" value="28"><span><b>28</b><small>Todos los días</small></span></label>
-        <label><input type="radio" name="blister" value="21"><span><b>21 + 7</b><small>Con descanso</small></span></label>
+      <p class="etiqueta">Bellaface · 21 + 7 de descanso</p>
+      <h2 id="aj-titulo">¿En qué vas hoy?</h2>
+      <div class="segmento" role="radiogroup" aria-label="En qué vas hoy">
+        <label><input type="radio" name="fase" value="tomando"><span><b>Tomando</b><small>Estoy en el blister</small></span></label>
+        <label><input type="radio" name="fase" value="descanso"><span><b>Descanso</b><small>Ya terminé las 21</small></span></label>
       </div>
-      <label class="campo">
-        <span>Día 1 del blister actual</span>
-        <input type="date" id="aj-inicio">
+      <div class="campo" id="campo-tomando">
+        <span id="lbl-numero">¿Qué pastilla te toca hoy?</span>
+        <div class="contador" role="group" aria-labelledby="lbl-numero">
+          <button type="button" class="contador-btn" data-paso="-1" aria-label="Una pastilla menos"><svg class="i"><use href="#i-menos"/></svg></button>
+          <span class="contador-valor"><output id="aj-numero">1</output><small>de 21</small></span>
+          <button type="button" class="contador-btn" data-paso="1" aria-label="Una pastilla más"><svg class="i"><use href="#i-mas"/></svg></button>
+        </div>
+      </div>
+      <label class="campo" id="campo-descanso">
+        <span>¿Qué día te tomaste la última (la 21)?</span>
+        <input type="date" id="aj-ultima">
       </label>
+      <p class="resumen" id="aj-resumen"></p>
       <ul class="info">
         <li><svg class="i"><use href="#i-campana"/></svg><span><b>9:00 p. m.</b> Te llega un WhatsApp de recordatorio</span></li>
         <li><svg class="i"><use href="#i-alarma"/></svg><span><b>9:30 p. m.</b> Si no la has registrado, les llega otro WhatsApp a los dos</span></li>
-        <li><svg class="i"><use href="#i-sobre"/></svg><span>Cada vez que la registras, a <span id="info-el">él</span> le llega un WhatsApp</span></li>
+        <li><svg class="i"><use href="#i-mensaje"/></svg><span>Cada vez que la registras, a <span id="info-el">él</span> le llega un WhatsApp</span></li>
       </ul>
       <div class="hoja-acciones">
         <button class="btn btn-primario" type="submit">Guardar</button>
